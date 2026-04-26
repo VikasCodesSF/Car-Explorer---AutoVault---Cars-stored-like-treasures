@@ -67,8 +67,6 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 ---
 
 ## Commit 1 — Custom Page Template Design
-
-**Lecture:** 159 · Duration: 14 min  
 **Component Name:** `pageTemplate_2_7_3`  
 **Purpose:** Defines a custom three-column layout (Left 2 / Center 7 / Right 5) registered as a Lightning App Page Template in App Builder.
 
