@@ -30,7 +30,7 @@
    - [LWC Bundle File Structure](#lwc-bundle-file-structure)
    - [Key Concepts & Exam Notes — LWC](#key-concepts--exam-notes--lwc)
 5. [Commit 3 — Car Filter Section Design](#commit-3--car-filter-section-design)
-   - [What Changed from Commit 2](#what-changed-from-commit-2)
+   - [](#what-changed-from-commit-2)
    - [carFilter.html — Real Implementation](#carfilterhtml--real-implementation)
    - [carFilter.js — Real Implementation](#carfilterjs--real-implementation)
    - [Wire Adapters Used](#wire-adapters-used)
@@ -638,7 +638,7 @@ Every LWC component follows the same standard bundle structure:
  
 | Aspect | Commit 2 (Placeholder) | Commit 3 (Real Implementation) |
 |---|---|---|
-| Picklist source | Hardcoded `makeOptions` / `categoryOptions` arrays in JS | Dynamically fetched via `@wire(getPicklistValues)` from org metadata |
+| Picklist source | Not implemented | Dynamically fetched via `@wire(getPicklistValues)` from org metadata |
 | Filter inputs | `lightning-combobox` dropdowns | `lightning-input type="search"` + `lightning-slider` + `lightning-input type="checkbox"` |
 | Schema imports | None | `CAR_OBJECT`, `CATEGORY_FIELD`, `MAKE_FIELD` imported via `@salesforce/schema` |
 | Wire adapters | None | `getObjectInfo` + `getPicklistValues` from `lightning/uiObjectInfoApi` |
