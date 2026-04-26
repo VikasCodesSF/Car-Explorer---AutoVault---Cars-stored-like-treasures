@@ -21,6 +21,14 @@
    - [Grid System Breakdown](#grid-system-breakdown)
    - [How It All Works Together](#how-it-all-works-together)
    - [Key Concepts & Exam Notes](#key-concepts--exam-notes)
+4. [Commit 2 — Component Creation & Placement](#commit-2--component-creation--placement)
+   - [Components Overview](#components-overview)
+   - [carFilter](#carfilter)
+   - [carTileList](#cartilelist)
+   - [carCard](#carcard)
+   - [Component Placement in Page Template](#component-placement-in-page-template)
+   - [LWC Bundle File Structure](#lwc-bundle-file-structure)
+   - [Key Concepts & Exam Notes — LWC](#key-concepts--exam-notes--lwc)
 
 ---
 
@@ -31,14 +39,16 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 | Property | Detail |
 |---|---|
 | App Name | AutoVault — Car Showcase |
-| Object | Car__c (custom object) |
+| Object | `Car__c` (custom object) |
+| Total Fields | 13 (including system fields) |
 | Owner | Vikaskumar Pandey |
 | API Version | 66.0 (Spring '25) |
+| Template Type | Lightning App Home Page (`lightning:appHomeTemplate`) |
 
 ---
 
 ### Car__c — Fields & Relationships
- 
+
 | Field Label | Field Name | Data Type | Notes |
 |---|---|---|---|
 | Car Name | `Name` | Text(80) | Standard name field · Indexed |
@@ -54,7 +64,7 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 | Owner | `Owner__c` | Lookup(User) | Custom owner lookup |
 | Owner | `OwnerId` | Lookup(User, Group) | Standard ownership field |
 | Picture URL | `Picture_URL__c` | URL(255) | Custom · Direct URL to car image |
- 
+
 ---
 
 ## Commit History
@@ -62,7 +72,7 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 | # | Commit Name | Description | Status |
 |---|---|---|---|
 | 1 | Custom Page Template Design | Three-column Aura page template — `pageTemplate_2_7_3` | ✅ Done |
-| 2 | Component Creation & Placement | — | ✅ Done |
+| 2 | Component Creation & Placement | Three LWC components — `carFilter`, `carTileList`, `carCard` | ✅ Done |
 | 3 | _(next commit)_ | — | 🔜 Pending |
 | 4 | _(next commit)_ | — | 🔜 Pending |
 | 5 | _(next commit)_ | — | 🔜 Pending |
@@ -74,6 +84,7 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 ---
 
 ## Commit 1 — Custom Page Template Design
+
 **Component Name:** `pageTemplate_2_7_3`  
 **Purpose:** Defines a custom three-column layout (Left 2 / Center 7 / Right 5) registered as a Lightning App Page Template in App Builder.
 
@@ -334,4 +345,280 @@ Users see the three-column layout at runtime
 
 ---
 
-*This document is updated with each commit. Add new commits below Commit 1 following the same structure.*
+## Commit 2 — Component Creation & Placement
+
+**Purpose:** Create three LWC components that power the AutoVault car showcase UI and place them into the three regions defined by the Aura page template from Commit 1.
+
+---
+
+### Components Overview
+
+| Component | Placed In | Role | Communicates With |
+|---|---|---|---|
+| `carFilter` | Left column (size 2) | Sidebar filter panel — filters cars by Make, Category, etc. | Fires event → `carTileList` |
+| `carTileList` | Center column (size 7) | Displays filtered list of car tiles | Receives filter → renders `carCard` |
+| `carCard` | Center column (size 3) | Individual car card — shows image, name, MSRP, Make | Child of `carTileList` |
+
+**Data flow:**
+
+```
+carFilter  ──(filter event)──▶  carTileList  ──(car record)──▶  carCard
+  Left                            Center                         Center (child)
+```
+
+---
+
+### carFilter
+
+**Component Name:** `carFilter`  
+**Placed In:** Left column of the page template  
+**Purpose:** Renders a filter panel that lets users narrow down the car list by fields like Make, Category, or Max Price. Fires a custom event carrying the selected filter criteria up to `carTileList`.
+
+#### File Structure
+
+| File | Purpose |
+|---|---|
+| `carFilter.html` | Filter form markup — picklists, sliders, or input fields |
+| `carFilter.js` | Handles filter change events, fires custom event to parent |
+| `carFilter.js-meta.xml` | Metadata — exposes component to App Builder |
+| `carFilter.css` | Scoped styles for the filter panel |
+
+#### carFilter.html
+
+```html
+<template>
+  <lightning-card title="Filter Cars" icon-name="utility:filterList">
+  </lightning-card>
+</template>
+```
+
+#### carFilter.js
+
+```javascript
+import { LightningElement, track } from 'lwc';
+
+export default class CarFilter extends LightningElement {}
+```
+
+#### carFilter.js-meta.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+  <apiVersion>66.0</apiVersion>
+  <isExposed>true</isExposed>
+  <masterLabel>Car Filter</masterLabel>
+  <targets>
+    <target>lightning__AppPage</target>
+    <target>lightning__RecordPage</target>
+    <target>lightning__HomePage</target>
+  </targets>
+</LightningComponentBundle>
+```
+
+**Key points:**
+- `isExposed: true` — makes the component visible in App Builder's component panel so admins can drag it onto the page
+- `targets` — defines which page types the component can be placed on; `lightning__AppPage` is required for this app's template
+- `bubbles: true` on the custom event allows it to propagate up through the DOM tree
+
+---
+
+### carTileList
+
+**Component Name:** `carTileList`  
+**Placed In:** Center column of the page template  
+**Purpose:** The main content area. Queries `Car__c` records via a wire adapter, listens for filter events from `carFilter`, applies the filters, and renders one `carCard` per result using `template iterator`.
+
+#### File Structure
+
+| File | Purpose |
+|---|---|
+| `carTileList.html` | Iterates over car records, renders `c-car-card` for each |
+| `carTileList.js` | Wire service to fetch cars, filter logic, event listener |
+| `carTileList.js-meta.xml` | Metadata — exposes to App Builder |
+| `carTileList.css` | Grid layout styles for the tile list |
+
+#### carTileList.html
+
+```html
+<template>
+  <lightning-card title="Cars" icon-name="utility:car">
+  </lightning-card>
+</template>
+```
+
+#### carTileList.js
+
+```javascript
+import { LightningElement, wire, track } from 'lwc';
+import getCars from '@salesforce/apex/CarController.getCars';
+
+export default class CarTileList extends LightningElement {}
+```
+
+#### carTileList.css
+
+```css
+.car-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+```
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+  <apiVersion>66.0</apiVersion>
+  <isExposed>true</isExposed>
+  <masterLabel>Car Title List</masterLabel>
+  <targets>
+    <target>lightning__AppPage</target>
+    <target>lightning__RecordPage</target>
+    <target>lightning__HomePage</target>
+  </targets>
+</LightningComponentBundle>
+```
+
+**Key points:**
+- `@wire(getCars)` — declarative data fetching; Salesforce calls the Apex method and re-renders when data changes
+- `iterator:it` — used instead of `for:each` when you need access to `it.first` / `it.last` metadata per iteration
+- `handleFilterChange` listens for the bubbled `filterchange` event dispatched by `carFilter`
+- `applyFilters()` runs client-side filtering on the already-fetched dataset — avoids extra server calls on each filter change
+
+---
+
+### carCard
+
+**Component Name:** `carCard`  
+**Placed In:** Inside `carTileList` (child component — not directly in the page template)  
+**Purpose:** Displays a single `Car__c` record as a visual card with the car image, name, make, category, and MSRP. Receives the car record as a `@api` property from `carTileList`.
+
+#### File Structure
+
+| File | Purpose |
+|---|---|
+| `carCard.html` | Card markup — image, name, make, MSRP |
+| `carCard.js` | `@api car` property to receive record from parent |
+| `carCard.js-meta.xml` | Metadata — `isExposed: false` (child-only component) |
+| `carCard.css` | Card visual styles |
+
+#### carCard.html
+
+```html
+<template>
+  <lightning-card>
+  </lightning-card>
+</template>
+```
+
+#### carCard.js
+
+```javascript
+import { LightningElement, api } from 'lwc';
+
+export default class CarCard extends LightningElement {}
+```
+
+#### carCard.js-meta.xml
+
+```xml
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+  <apiVersion>66.0</apiVersion>
+  <isExposed>true</isExposed>
+  <masterLabel>Car Card</masterLabel>
+  <targets>
+    <target>lightning__AppPage</target>
+    <target>lightning__RecordPage</target>
+    <target>lightning__HomePage</target>
+  </targets>
+</LightningComponentBundle>
+```
+```
+
+#### carCard.css
+
+```css
+
+```
+
+**Key points:**
+- `@api car` — the public property decorator; without `@api` the parent cannot pass data into this component
+- `isExposed: false` — `carCard` is a **child-only** component; it should not appear in App Builder's component panel since it is always rendered programmatically by `carTileList`
+- `lightning-formatted-number` with `format-style="currency"` handles locale-aware currency formatting automatically
+
+---
+
+### Component Placement in Page Template
+
+The three LWC components map directly to the three regions defined in Commit 1's Aura page template:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  pageTemplate_2_7_3 (Aura)                  │
+├──────────────┬──────────────────────────┬───────────────────┤
+│  LEFT (2)    │      CENTER (7)          │    RIGHT (5)      │
+│              │                          │                   │
+│  carFilter   │     carTileList          │   (Car Card)      │
+│              │   ┌──────┐ ┌──────┐      │                   │
+│  Make        │   │carCard│ │carCard│    │                   │
+│  Category    │   └──────┘ └──────┘      │                   │
+│  Max Price   │   ┌──────┐ ┌──────┐      │                   │
+│              │   │carCard│ │carCard│    │                   │
+│              │   └──────┘ └──────┘      │                   │
+└──────────────┴──────────────────────────┴───────────────────┘
+```
+
+| Template Region | Size | Component Placed | How Placed |
+|---|---|---|---|
+| Left | 2 | `carFilter` | Dragged in via Lightning App Builder |
+| Center | 7 | `carTileList` | Dragged in via Lightning App Builder |
+| Right | 3 | _(reserved for future commit)_ | — |
+
+---
+
+### LWC Bundle File Structure
+
+Every LWC component follows the same standard bundle structure:
+
+| File | Required | Purpose |
+|---|---|---|
+| `componentName.html` | ✅ Yes | Template markup — must have a single `<template>` root |
+| `componentName.js` | ✅ Yes | Component class — extends `LightningElement` |
+| `componentName.js-meta.xml` | ✅ Yes | Metadata — API version, `isExposed`, targets |
+| `componentName.css` | No | Scoped styles — automatically scoped, no `.THIS` needed |
+| `componentName.test.js` | No | Jest unit tests |
+
+**Key differences vs Aura bundle:**
+
+| Aspect | Aura | LWC |
+|---|---|---|
+| CSS scoping | `.THIS` prefix required | Automatic — no prefix needed |
+| Data binding | `{!v.property}` | `{property}` |
+| Event handling | `action="{!c.func}"` | `oneventname={handler}` |
+| JS structure | Controller + Helper + Renderer (3 files) | Single `.js` class file |
+| Public property | `access="global"` on attribute | `@api` decorator |
+| Reactive property | `@AuraEnabled` | `@track` / `@api` / `@wire` |
+
+---
+
+### Key Concepts & Exam Notes — LWC
+
+| Concept | Rule |
+|---|---|
+| `@api` | Makes a property or method publicly accessible from a parent component — required to pass data down |
+| `@track` | Makes a property deeply reactive — re-renders when nested object/array properties change |
+| `@wire` | Declarative data fetching — auto-calls Apex or wire adapters and re-renders on data change |
+| `isExposed: true` | Required for a component to appear in App Builder — always set on page-level components |
+| `isExposed: false` | Set on child-only components like `carCard` that are rendered programmatically |
+| `targets` | Defines which page types a component can be placed on — must include `lightning__AppPage` for this app |
+| `CustomEvent` | Used to communicate from child → parent; use `bubbles: true` to propagate through DOM |
+| `iterator:it` | Use instead of `for:each` when you need `it.first` / `it.last` / `it.index` metadata |
+| CSS scoping | LWC CSS is automatically scoped — no `.THIS` needed unlike Aura |
+| Child component tag | LWC component names use kebab-case in HTML: `carCard` → `<c-car-card>` |
+
+---
+
+*This document is updated with each commit. Add new commits below Commit 2 following the same structure.*
