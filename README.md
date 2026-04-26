@@ -73,7 +73,7 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 |---|---|---|---|
 | 1 | Custom Page Template Design | Three-column Aura page template — `pageTemplate_2_7_3` | ✅ Done |
 | 2 | Component Creation & Placement | Three LWC components — `carFilter`, `carTileList`, `carCard` | ✅ Done |
-| 3 | _(next commit)_ | — | 🔜 Pending |
+| 3 | Car Filter Section Design | `carFilter` — actual HTML + JS: `getObjectInfo`, `getPicklistValues`, search key, price slider, category & make checkboxes via `data-*` | ✅ Done |
 | 4 | _(next commit)_ | — | 🔜 Pending |
 | 5 | _(next commit)_ | — | 🔜 Pending |
 | 6 | _(next commit)_ | — | 🔜 Pending |
@@ -620,5 +620,301 @@ Every LWC component follows the same standard bundle structure:
 | Child component tag | LWC component names use kebab-case in HTML: `carCard` → `<c-car-card>` |
 
 ---
-
-*This document is updated with each commit. Add new commits below Commit 2 following the same structure.*
+## Commit 3 — Car Filter Section Design
+ 
+**Component:** `carFilter`  
+**Purpose:** Implements the real `carFilter` HTML and JS — replacing the placeholder from Commit 2 with the actual working implementation. Uses `lightning/uiObjectInfoApi` wire adapters to dynamically load picklist values for `Category__c` and `Make__c` directly from the `Car__c` object metadata. Renders a search input, a price range slider, and two checkbox groups.
+ 
+---
+ 
+### What Changed from Commit 2
+ 
+| Aspect | Commit 2 (Placeholder) | Commit 3 (Real Implementation) |
+|---|---|---|
+| Picklist source | Hardcoded `makeOptions` / `categoryOptions` arrays in JS | Dynamically fetched via `@wire(getPicklistValues)` from org metadata |
+| Filter inputs | `lightning-combobox` dropdowns | `lightning-input type="search"` + `lightning-slider` + `lightning-input type="checkbox"` |
+| Schema imports | None | `CAR_OBJECT`, `CATEGORY_FIELD`, `MAKE_FIELD` imported via `@salesforce/schema` |
+| Wire adapters | None | `getObjectInfo` + `getPicklistValues` from `lightning/uiObjectInfoApi` |
+| Checkbox handling | Not implemented | `data-name` + `data-value` dataset attributes read in `handleCheckbox` |
+| Error handling | None | `categoryError` and `makeError` constants displayed via `if:true={categories.error}` |
+ 
+---
+ 
+### carFilter.html — Real Implementation
+ 
+```html
+<template>
+    <lightning-card title="Filters" icon-name="standard:calibration">
+        <div class="slds-m-horizontal_medium">
+ 
+            <!-- Search input -->
+            <lightning-input
+                type="search"
+                label="Search Key"
+                value={filters.searchKey}
+                onchange={handleSearchKeyChange}>
+            </lightning-input>
+ 
+            <!-- Price range slider -->
+            <section class="slider_section">
+                <lightning-slider
+                    min="100"
+                    max="999999"
+                    step="1000"
+                    label="Max Price"
+                    value={filters.maxPrice}
+                    onchange={handleMaxPriceChange}>
+                </lightning-slider>
+            </section>
+ 
+            <!-- Category checkboxes — dynamically loaded from picklist -->
+            <section>
+                <h2>Category</h2>
+                <template if:true={categories.data}>
+                    <template for:each={categories.data.values} for:item="category">
+                        <lightning-input
+                            key={category.value}
+                            label={category.label}
+                            type="checkbox"
+                            checked
+                            data-name="category"
+                            data-value={category.value}
+                            onchange={handleCheckbox}>
+                        </lightning-input>
+                    </template>
+                </template>
+                <template if:true={categories.error}>
+                    <div>{categoryError}</div>
+                </template>
+            </section>
+ 
+            <!-- Make checkboxes — dynamically loaded from picklist -->
+            <section>
+                <h2>Make</h2>
+                <template if:true={makeType.data}>
+                    <template for:each={makeType.data.values} for:item="make">
+                        <lightning-input
+                            key={make.value}
+                            label={make.label}
+                            type="checkbox"
+                            checked
+                            data-name="makeType"
+                            data-value={make.value}
+                            onchange={handleCheckbox}>
+                        </lightning-input>
+                    </template>
+                </template>
+                <template if:true={makeType.error}>
+                    <div>{makeError}</div>
+                </template>
+            </section>
+ 
+        </div>
+    </lightning-card>
+</template>
+```
+ 
+**HTML structure breakdown:**
+ 
+| Element | Purpose |
+|---|---|
+| `lightning-card title="Filters"` | Wraps the entire filter panel in a card with the title "Filters" |
+| `icon-name="standard:calibration"` | Uses the SLDS calibration icon for the card header |
+| `slds-m-horizontal_medium` | Adds medium horizontal margin/padding inside the card |
+| `lightning-input type="search"` | Standard search box — fires `onchange` on every keystroke |
+| `lightning-slider` | Range slider from 100 to 999,999 in steps of 1,000 for Max Price |
+| `if:true={categories.data}` | Conditional render — only shows checkboxes when wire data is loaded |
+| `for:each={categories.data.values}` | Iterates over picklist values returned by the wire adapter |
+| `for:item="category"` | Iterator variable — gives access to `category.label` and `category.value` |
+| `key={category.value}` | Required unique key on each iterated element — avoids DOM reconciliation issues |
+| `checked` (no binding) | All checkboxes start as checked by default — all filters active on load |
+| `data-name="category"` | HTML5 dataset attribute — identifies which filter group this checkbox belongs to |
+| `data-value={category.value}` | HTML5 dataset attribute — stores the picklist value for this checkbox |
+| `if:true={categories.error}` | Shows error message string if the wire adapter fails |
+ 
+---
+ 
+### carFilter.js — Real Implementation
+ 
+```javascript
+import { LightningElement, wire } from 'lwc';
+import { getObjectInfo, getPicklistValues } from 'lightning/uiObjectInfoApi';
+import CAR_OBJECT from '@salesforce/schema/Car__c';
+ 
+// Car Schema field imports
+import CATEGORY_FIELD from '@salesforce/schema/Car__c.Category__c';
+import MAKE_FIELD     from '@salesforce/schema/Car__c.Make__c';
+ 
+// Error message constants
+const CATEGORY_ERROR = 'Error loading Categories';
+const MAKE_ERROR     = 'Error loading Make';
+ 
+export default class CarFilter extends LightningElement {
+ 
+    // Reactive filter state object
+    filters = {
+        searchKey : '',
+        maxPrice  : 999999
+    }
+ 
+    // Error message strings
+    categoryError = CATEGORY_ERROR;
+    makeError     = MAKE_ERROR;
+ 
+    // Step 1: Fetch Car__c object metadata to get the default record type ID
+    @wire(getObjectInfo, { objectApiName: CAR_OBJECT })
+    carObjectInfo;
+ 
+    // Step 2: Use the defaultRecordTypeId from Step 1 to fetch Category picklist values
+    // '$carObjectInfo.data.defaultRecordTypeId' — $ prefix makes it reactive
+    @wire(getPicklistValues, {
+        recordTypeId : '$carObjectInfo.data.defaultRecordTypeId',
+        fieldApiName : CATEGORY_FIELD
+    })
+    categories;
+ 
+    // Step 3: Fetch Make picklist values the same way
+    @wire(getPicklistValues, {
+        recordTypeId : '$carObjectInfo.data.defaultRecordTypeId',
+        fieldApiName : MAKE_FIELD
+    })
+    makeType;
+ 
+    // Handler — search key input
+    handleSearchKeyChange(event) {
+        console.log(event.target.value);
+        this.filters = { ...this.filters, searchKey: event.target.value };
+    }
+ 
+    // Handler — price range slider
+    handleMaxPriceChange(event) {
+        console.log(event.target.value);
+        this.filters = { ...this.filters, maxPrice: event.target.value };
+    }
+ 
+    // Handler — category / make checkboxes
+    handleCheckbox(event) {
+        const { name, value } = event.target.dataset;
+        console.log("name",  name);   // "category" or "makeType"
+        console.log("value", value);  // e.g. "Sports" or "Ferrari"
+    }
+}
+```
+ 
+---
+ 
+### Wire Adapters Used
+ 
+#### Step 1 — `getObjectInfo`
+ 
+```javascript
+@wire(getObjectInfo, { objectApiName: CAR_OBJECT })
+carObjectInfo;
+```
+ 
+| Property | Detail |
+|---|---|
+| Imported from | `lightning/uiObjectInfoApi` |
+| What it returns | Full metadata for `Car__c` — fields, record types, label, etc. |
+| Why needed | To get `defaultRecordTypeId` — required as input to `getPicklistValues` |
+| Result shape | `carObjectInfo.data.defaultRecordTypeId` / `carObjectInfo.error` |
+| Schema import | `CAR_OBJECT` → `import CAR_OBJECT from '@salesforce/schema/Car__c'` |
+ 
+#### Step 2 — `getPicklistValues`
+ 
+```javascript
+@wire(getPicklistValues, {
+    recordTypeId : '$carObjectInfo.data.defaultRecordTypeId',
+    fieldApiName : CATEGORY_FIELD
+})
+categories;
+```
+ 
+| Property | Detail |
+|---|---|
+| Imported from | `lightning/uiObjectInfoApi` |
+| What it returns | Picklist metadata for the specified field — `{ values: [{ label, value }] }` |
+| `recordTypeId` | Must be the record type ID — fetched from `getObjectInfo` in Step 1 |
+| `$` prefix | `'$carObjectInfo.data.defaultRecordTypeId'` — `$` makes this a **reactive property**; wire re-fires when this value resolves |
+| `fieldApiName` | Schema reference imported via `@salesforce/schema/Car__c.Category__c` |
+| Iteration | `categories.data.values` → each item has `.label` and `.value` |
+| Error | `categories.error` → shown in template via `if:true={categories.error}` |
+ 
+**Reactive wire chain — how it works:**
+ 
+```
+Page loads
+    ↓
+@wire(getObjectInfo) fires → fetches Car__c metadata
+    ↓
+carObjectInfo.data.defaultRecordTypeId resolves
+    ↓
+$ reactive prefix triggers getPicklistValues to re-fire
+    ↓
+categories.data.values populated → checkboxes render
+makeType.data.values populated   → checkboxes render
+```
+ 
+---
+ 
+### Handler Methods Explained
+ 
+#### `handleSearchKeyChange`
+ 
+```javascript
+handleSearchKeyChange(event) {
+    this.filters = { ...this.filters, searchKey: event.target.value };
+}
+```
+ 
+- Uses **spread operator** `{ ...this.filters }` to create a new object — this triggers LWC reactivity
+- `event.target.value` reads the current input value directly from the DOM element
+- Updates only `searchKey` while preserving `maxPrice` unchanged
+#### `handleMaxPriceChange`
+ 
+```javascript
+handleMaxPriceChange(event) {
+    this.filters = { ...this.filters, maxPrice: event.target.value };
+}
+```
+ 
+- Same spread pattern — updates only `maxPrice`, preserves `searchKey`
+- `lightning-slider` fires `onchange` on every slide movement
+- Note: `event.target.value` returns a **string** — may need `parseInt()` or `Number()` when comparing with numeric MSRP values
+#### `handleCheckbox`
+ 
+```javascript
+handleCheckbox(event) {
+    const { name, value } = event.target.dataset;
+    console.log("name",  name);   // "category" or "makeType"
+    console.log("value", value);  // picklist value e.g. "Sports"
+}
+```
+ 
+- Reads `data-name` and `data-value` HTML dataset attributes via `event.target.dataset`
+- A single handler manages **all checkboxes** across both Category and Make sections
+- `name` tells us which filter group was changed; `value` tells us which picklist option
+- Currently logs to console — filter application logic to be added in a future commit
+> ⚠️ **Note:** `handleCheckbox` is currently incomplete — it reads and logs the dataset values but does not yet update `this.filters` or fire an event to `carTileList`. This will be completed in the next commit.
+ 
+---
+ 
+### Key Concepts & Exam Notes — Commit 3
+ 
+| Concept | Rule |
+|---|---|
+| `getObjectInfo` | Always required first — provides `defaultRecordTypeId` needed by `getPicklistValues` |
+| `getPicklistValues` | Requires both `recordTypeId` AND `fieldApiName` — both mandatory inputs |
+| `$` reactive prefix | Makes a wire property reactive — wire re-evaluates when the referenced value changes |
+| `@salesforce/schema` | Type-safe schema imports — Salesforce validates field/object API names at deploy time |
+| `data-*` attributes | HTML5 dataset attributes — best pattern for passing context values through event handlers |
+| `event.target.dataset` | Destructure `{ name, value }` to read all `data-*` attributes from the element |
+| `{ ...this.filters }` | Spread operator creates a new object reference — required to trigger LWC reactivity on objects |
+| `for:each` + `key` | Every `for:each` iterated element **must** have a unique `key` attribute — missing key causes runtime warning |
+| `checked` (no binding) | Static `checked` attribute sets initial state — not two-way bound; state is read via `event.target.checked` |
+| Wire result shape | `wire.data` / `wire.error` — always check `if:true={wire.data}` before accessing nested properties |
+| `getPicklistValues` result | `wire.data.values` is an array of `{ label: string, value: string }` objects |
+ 
+---
+ 
+*This document is updated with each commit. Add new commits below Commit 3 following the same structure.*
