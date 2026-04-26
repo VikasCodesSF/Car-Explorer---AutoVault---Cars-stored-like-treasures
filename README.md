@@ -62,7 +62,7 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 | # | Commit Name | Description | Status |
 |---|---|---|---|
 | 1 | Custom Page Template Design | Three-column Aura page template — `pageTemplate_2_7_3` | ✅ Done |
-| 2 | Component Creation & Placement | ✅ Done |
+| 2 | Component Creation & Placement | — | ✅ Done |
 | 3 | _(next commit)_ | — | 🔜 Pending |
 | 4 | _(next commit)_ | — | 🔜 Pending |
 | 5 | _(next commit)_ | — | 🔜 Pending |
