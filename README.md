@@ -32,11 +32,29 @@ AutoVault is a custom Salesforce application built to showcase different cars. T
 |---|---|
 | App Name | AutoVault — Car Showcase |
 | Object | Car__c (custom object) |
-| Fields | Car Name, Category, Make, Control, MSRP, Seats, Fuel Type, Description, Picture URL |
 | Owner | Vikaskumar Pandey |
 | API Version | 66.0 (Spring '25) |
-| Template Type | Lightning App Home Page (`lightning:appHomeTemplate`) |
 
+---
+
+### Car__c — Fields & Relationships
+ 
+| Field Label | Field Name | Data Type | Notes |
+|---|---|---|---|
+| Car Name | `Name` | Text(80) | Standard name field · Indexed |
+| Category | `Category__c` | Picklist | Custom · Car category (Sports, SUV, Sedan, etc.) |
+| Control | `Control__c` | Picklist | Custom · Transmission type (Manual / Automatic) |
+| Created By | `CreatedById` | Lookup(User) | System field — auto-populated |
+| Description | `Description__c` | Long Text Area(32768) | Custom · Full car description |
+| Fuel Type | `Fuel_Type__c` | Text(250) | Custom · e.g. Petrol, Diesel, Electric |
+| Last Modified By | `LastModifiedById` | Lookup(User) | System field — auto-populated |
+| Make | `Make__c` | Picklist | Custom · Car brand (Ferrari, Tesla, BMW, etc.) |
+| MSRP | `MSRP__c` | Currency(6, 0) | Custom · Manufacturer's Suggested Retail Price |
+| Number of Seats | `Number_of_Seats__c` | Number(1, 0) | Custom · Seating capacity |
+| Owner | `Owner__c` | Lookup(User) | Custom owner lookup |
+| Owner | `OwnerId` | Lookup(User, Group) | Standard ownership field |
+| Picture URL | `Picture_URL__c` | URL(255) | Custom · Direct URL to car image |
+ 
 ---
 
 ## Commit History
