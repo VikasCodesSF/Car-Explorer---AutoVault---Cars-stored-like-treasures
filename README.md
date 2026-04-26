@@ -30,7 +30,7 @@
    - [LWC Bundle File Structure](#lwc-bundle-file-structure)
    - [Key Concepts & Exam Notes — LWC](#key-concepts--exam-notes--lwc)
 5. [Commit 3 — Car Filter Section Design](#commit-3--car-filter-section-design)
-   - [](#what-changed-from-commit-2)
+   - [What Changed from Commit 2](#what-changed-from-commit-2)
    - [carFilter.html — Real Implementation](#carfilterhtml--real-implementation)
    - [carFilter.js — Real Implementation](#carfilterjs--real-implementation)
    - [Wire Adapters Used](#wire-adapters-used)
